@@ -1,20 +1,20 @@
 package redis
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
-	"sync"
-	"time"
-
+	"encoding/gob"
 	"github.com/go-redis/redis"
 	"github.com/go-session/session"
+	"sync"
+	"time"
 )
 
 var (
 	_             session.ManagerStore = &managerStore{}
 	_             session.Store        = &store{}
-	jsonMarshal                        = json.Marshal
-	jsonUnmarshal                      = json.Unmarshal
+	//jsonMarshal                        = json.Marshal
+	//jsonUnmarshal                      = json.Unmarshal
 )
 
 // NewRedisStore create an instance of a redis store
@@ -95,7 +95,10 @@ func (s *managerStore) getValue(sid string) (string, error) {
 func (s *managerStore) parseValue(value string) (map[string]interface{}, error) {
 	var values map[string]interface{}
 	if len(value) > 0 {
-		err := jsonUnmarshal([]byte(value), &values)
+		bt := []byte(value)
+		reader := bytes.NewReader(bt)
+		doc := gob.NewDecoder(reader)
+		err := doc.Decode(&values)
 		if err != nil {
 			return nil, err
 		}
@@ -243,12 +246,17 @@ func (s *store) Save() error {
 
 	s.RLock()
 	if len(s.values) > 0 {
-		buf, err := jsonMarshal(s.values)
+
+		var buffer bytes.Buffer
+
+		encoder := gob.NewEncoder(&buffer)
+
+		err := encoder.Encode(s.values)
 		if err != nil {
 			s.RUnlock()
 			return err
 		}
-		value = string(buf)
+		value = string(buffer.Bytes())
 	}
 	s.RUnlock()
 
