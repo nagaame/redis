@@ -256,7 +256,7 @@ func (s *store) Save() error {
 			s.RUnlock()
 			return err
 		}
-		value = string(buffer.Bytes())
+		value = buffer.String()
 	}
 	s.RUnlock()
 
